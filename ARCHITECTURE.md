@@ -10,7 +10,7 @@ flowchart LR
     CLI["lffa CLI"]
     LEDGER["SQLite ledger\n(ledger.py)"]
     EMB["Embeddings stub\n(embeddings.py)"]
-    SLM["Local SLM\n(future)"]
+    SLM["Local SLM\n(Ollama / stub)"]
     AGENT["Agent loop\n(agent.py)"]
     CLI --> AGENT
     AGENT --> LEDGER
@@ -36,7 +36,7 @@ flowchart LR
 2. **Context build** — Agent reads ledger summary + recent txs; never sends raw DB to cloud in this scaffold.
 3. **Embed (stub)** — Deterministic local hash vectors label transactions/questions for future retrieval (not semantic yet).
 4. **Route** — `decide_route()` compares prompt size to `LFFA_LOCAL_MAX_CONTEXT_CHARS` (or `LFFA_FORCE_LOCAL`). Under budget → **local SLM path**; over budget → **would overflow to Nosana** (no HTTP in scaffold).
-5. **Respond** — Stub text explains which path was chosen; real SLM / Nosana integration is TODO.
+5. **Respond** — Local path calls Ollama (`slm.py`) when reachable; otherwise stub text + notice. Nosana overflow response remains stub.
 6. **Provenance (optional)** — SHA-256 of canonical JSON for a turn; Arweave upload is stubbed.
 
 ## What is real vs stub
@@ -45,7 +45,7 @@ flowchart LR
 |-----------|--------|
 | SQLite ledger + CLI | **Working** |
 | Embeddings | **Stub** (deterministic local) |
-| Local SLM inference | **Stub** (routing only) |
+| Local SLM inference | **Ollama** (stdlib HTTP) or **stub** fallback |
 | Nosana overflow | **Stub** (interface + decision) |
 | Arweave upload | **Stub** (hash + metadata) |
 
