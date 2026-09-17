@@ -18,7 +18,7 @@ No crypto trading. No exchange APIs. Personal ledger + budgeting agent only.
 ```
 CLI → Agent → SQLite ledger
            → Local embeddings (stub)
-           → Route: local SLM  OR  Nosana overflow (stub)
+           → Route: local SLM (Ollama)  OR  Nosana overflow (stub)
            → Optional Arweave hash (stub)
 ```
 
@@ -41,10 +41,38 @@ Copy env template (optional — demo works without it):
 cp .env.example .env
 ```
 
+### Optional: local SLM via Ollama
+
+Routine questions use **Ollama** on your machine when it is running and the model is available. No extra Python dependencies (stdlib HTTP client).
+
+1. Install [Ollama](https://ollama.com/) for your OS.
+2. Pull the default small model (documented in [Ollama library](https://ollama.com/library/llama3.2)):
+
+```bash
+ollama pull llama3.2:1b
+```
+
+3. Ensure the daemon is listening (default `http://127.0.0.1:11434`).
+
+Environment (see [.env.example](./.env.example)):
+
+| Variable | Default |
+|----------|---------|
+| `LFFA_OLLAMA_BASE_URL` | `http://127.0.0.1:11434` |
+| `LFFA_OLLAMA_MODEL` | `llama3.2:1b` |
+
+If Ollama is unreachable or the model is missing, the CLI **falls back to the stub SLM reply** and prints a one-line notice on stderr — it does not crash.
+
 ### Demo command (local-first vs overflow)
 
 ```bash
 lffa demo
+```
+
+Ask a single question (same agent path as demo):
+
+```bash
+lffa ask "How am I doing on food spending this month?"
 ```
 
 Example routing output:
@@ -78,7 +106,7 @@ Data defaults to `./.lffa/ledger.db` (override with `LFFA_LEDGER_DB`).
 |-------|----------------|
 | SQLite ledger, summary, CLI | **Real** |
 | Embeddings | **Stub** (`stub-sha256-local-v0`) |
-| Local SLM replies | **Stub** text; routing is real |
+| Local SLM replies | **Ollama** when available; **stub** fallback + stderr notice |
 | Nosana jobs | **Stub** — `decide_route()` + `submit_overflow_job()` no HTTP |
 | Arweave | **Stub** — SHA-256 artifact metadata only |
 
@@ -91,6 +119,7 @@ src/lffa/
   ledger.py              # SQLite transactions
   embeddings.py          # local embedding stub
   agent.py               # agent turn + routing
+  slm.py                 # Ollama client + stub fallback
   nosana_overflow.py     # overflow interface (stub)
   arweave_provenance.py  # provenance stub
   cli.py                 # entrypoint
@@ -99,7 +128,7 @@ docs/hackernoon-outline.md
 
 ## Environment variables
 
-See [.env.example](./.env.example): `NOSANA_*`, `ARWEAVE_*`, `LFFA_LOCAL_MAX_CONTEXT_CHARS`, `LFFA_FORCE_LOCAL`.
+See [.env.example](./.env.example): `LFFA_OLLAMA_*`, `NOSANA_*`, `ARWEAVE_*`, `LFFA_LOCAL_MAX_CONTEXT_CHARS`, `LFFA_FORCE_LOCAL`.
 
 ## License
 
@@ -107,4 +136,4 @@ MIT — see [LICENSE](./LICENSE).
 
 ## Hackathon blog
 
-Outline for a HackerNoon submission: [docs/hackernoon-outline.md](./docs/hackernoon-outline.md).
+Draft for HackerNoon: [docs/hackernoon-draft.md](./docs/hackernoon-draft.md) (outline: [docs/hackernoon-outline.md](./docs/hackernoon-outline.md)).
