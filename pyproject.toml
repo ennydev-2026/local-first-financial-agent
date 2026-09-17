@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "local-first-financial-agent"
 version = "0.1.0"
-description = "Hackathon scaffold: local-first personal financial agent (ledger, embeddings, SLM; Nosana overflow; Arweave provenance stubs)."
+description = "Hackathon scaffold: local-first personal financial agent (ledger, embeddings, Ollama SLM; Nosana overflow; Arweave provenance stubs)."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"

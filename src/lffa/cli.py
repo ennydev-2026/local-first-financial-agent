@@ -69,8 +69,34 @@ def cmd_summary(args: argparse.Namespace) -> int:
     return 0
 
 
+def _print_agent_turn(turn: agent.AgentTurnResult) -> None:
+    print(f"Question: {turn.user_message}\n")
+    print("--- Inference routing ---")
+    print(f"Route: {turn.routing.route.value}")
+    print(f"Reason: {turn.routing.reason}")
+    print(f"Nosana credentials configured: {turn.routing.nosana_configured}")
+    print(f"Embedding (local stub): {turn.embedding_model}")
+    if turn.routing.route.value == "local_slm":
+        print(f"SLM backend: {turn.slm_backend}")
+    print()
+    label = "Agent" if turn.slm_backend == "ollama" else "Agent (stub fallback)" if turn.slm_backend == "stub" else "Agent (overflow stub)"
+    print(f"--- {label} ---")
+    if turn.slm_notice:
+        print(turn.slm_notice, file=sys.stderr)
+    print(turn.assistant_reply)
+    print()
+    print(turn.provenance_line)
+
+
+def cmd_ask(args: argparse.Namespace) -> int:
+    db = Path(args.db)
+    turn = agent.run_turn(db, args.question)
+    _print_agent_turn(turn)
+    return 0
+
+
 def cmd_demo(args: argparse.Namespace) -> int:
-    """End-to-end demo: seed if empty, summary, routing decision, agent stub turn."""
+    """End-to-end demo: seed if empty, summary, routing decision, agent turn (Ollama or stub)."""
     db = Path(args.db)
     ledger.seed_sample_transactions(db)
     print("=== Local-First Financial Agent (hackathon demo) ===\n")
@@ -79,17 +105,7 @@ def cmd_demo(args: argparse.Namespace) -> int:
 
     question = args.question or "How am I doing on food spending this month?"
     turn = agent.run_turn(db, question)
-    print(f"Question: {turn.user_message}\n")
-    print("--- Inference routing ---")
-    print(f"Route: {turn.routing.route.value}")
-    print(f"Reason: {turn.routing.reason}")
-    print(f"Nosana credentials configured: {turn.routing.nosana_configured}")
-    print(f"Embedding (local stub): {turn.embedding_model}")
-    print()
-    print("--- Agent (stub) ---")
-    print(turn.assistant_reply)
-    print()
-    print(turn.provenance_line)
+    _print_agent_turn(turn)
 
     if args.long_context:
         big = "x" * (turn.routing.local_max_chars + 500)
@@ -126,11 +142,15 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("summary", help="Print ledger summary").set_defaults(func=cmd_summary)
 
+    ask_p = sub.add_parser("ask", help="Ask the agent a question (local Ollama SLM or stub fallback)")
+    ask_p.add_argument("question", help="Natural-language question about your ledger")
+    ask_p.set_defaults(func=cmd_ask)
+
     demo_p = sub.add_parser("demo", help="Run demo: summary + local vs Nosana routing")
     demo_p.add_argument(
         "--question",
         default=None,
-        help="User question for the stub agent turn",
+        help="User question for the agent turn",
     )
     demo_p.add_argument(
         "--long-context",
