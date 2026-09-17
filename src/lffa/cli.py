@@ -78,11 +78,26 @@ def _print_agent_turn(turn: agent.AgentTurnResult) -> None:
     print(f"Embedding (local stub): {turn.embedding_model}")
     if turn.routing.route.value == "local_slm":
         print(f"SLM backend: {turn.slm_backend}")
+    else:
+        print(f"Overflow backend: {turn.overflow_backend or 'stub'}")
     print()
-    label = "Agent" if turn.slm_backend == "ollama" else "Agent (stub fallback)" if turn.slm_backend == "stub" else "Agent (overflow stub)"
+    if turn.routing.route.value == "nosana_overflow":
+        label = (
+            "Agent (Nosana overflow)"
+            if turn.overflow_backend == "nosana"
+            else "Agent (overflow stub)"
+        )
+    else:
+        label = (
+            "Agent"
+            if turn.slm_backend == "ollama"
+            else "Agent (stub fallback)"
+        )
     print(f"--- {label} ---")
     if turn.slm_notice:
         print(turn.slm_notice, file=sys.stderr)
+    if turn.overflow_notice:
+        print(turn.overflow_notice, file=sys.stderr)
     print(turn.assistant_reply)
     print()
     print(turn.provenance_line)
@@ -110,9 +125,14 @@ def cmd_demo(args: argparse.Namespace) -> int:
     if args.long_context:
         big = "x" * (turn.routing.local_max_chars + 500)
         overflow = nosana_overflow.decide_route(big)
+        job = nosana_overflow.build_overflow_job(big)
+        submit = nosana_overflow.submit_overflow_job(job)
         print("\n--- Overflow probe (synthetic large context) ---")
         print(f"Route: {overflow.route.value}")
         print(f"Reason: {overflow.reason}")
+        print(f"Overflow backend: {submit.backend}")
+        if submit.notice:
+            print(submit.notice, file=sys.stderr)
 
     return 0
 
