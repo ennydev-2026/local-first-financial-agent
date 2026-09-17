@@ -83,11 +83,13 @@ Route: local_slm
 Reason: Context (… chars) fits local SLM budget (≤ 4000).
 ```
 
-Force an overflow decision without sending anything to the network:
+Force an overflow routing probe (shows `Overflow backend: nosana|stub`):
 
 ```bash
 lffa demo --long-context
 ```
+
+With a Nosana API key, the client calls the [Nosana HTTP API](https://learn.nosana.com/api/intro.html) (balance check and optional job post). Without a key or on failure, it keeps the **stub** path and prints a one-line stderr notice. Hackathon credits: [docs/nosana-credits.md](./docs/nosana-credits.md).
 
 ### Other CLI commands
 
@@ -107,10 +109,20 @@ Data defaults to `./.lffa/ledger.db` (override with `LFFA_LEDGER_DB`).
 | SQLite ledger, summary, CLI | **Real** |
 | Embeddings | **Stub** (`stub-sha256-local-v0`) |
 | Local SLM replies | **Ollama** when available; **stub** fallback + stderr notice |
-| Nosana jobs | **Stub** — `decide_route()` + `submit_overflow_job()` no HTTP |
-| Arweave | **Stub** — SHA-256 artifact metadata only |
+| Nosana overflow | **HTTP client** when API key set (`nosana`); **stub** fallback + stderr notice |
+| Arweave | **SHA-256 metadata**; wallet path validated; on-chain upload **not implemented** yet |
 
-We do **not** claim live Nosana or Arweave integration until implemented.
+Nosana: API key verifies credits and can post a job when `NOSANA_IPFS_HASH` is set (see credits doc). Arweave: no fake `tx_id` on upload.
+
+### Nosana environment
+
+| Variable | Purpose |
+|----------|---------|
+| `NOSANA_API_KEY` / `LFFA_NOSANA_API_KEY` | Bearer token for `https://api.nosana.com` |
+| `LFFA_NOSANA_API_BASE` | Override API base URL |
+| `NOSANA_IPFS_HASH` + `NOSANA_MARKET` | Optional real job post via `/api/jobs/list` |
+
+Details: [docs/nosana-credits.md](./docs/nosana-credits.md).
 
 ## Project layout
 
@@ -128,7 +140,7 @@ docs/hackernoon-outline.md
 
 ## Environment variables
 
-See [.env.example](./.env.example): `LFFA_OLLAMA_*`, `NOSANA_*`, `ARWEAVE_*`, `LFFA_LOCAL_MAX_CONTEXT_CHARS`, `LFFA_FORCE_LOCAL`.
+See [.env.example](./.env.example): `LFFA_OLLAMA_*`, `NOSANA_*` / `LFFA_NOSANA_*`, `LFFA_ARWEAVE_*`, `LFFA_LOCAL_MAX_CONTEXT_CHARS`, `LFFA_FORCE_LOCAL`.
 
 ## License
 
