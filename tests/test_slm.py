@@ -7,6 +7,7 @@ import os
 import unittest
 from unittest.mock import MagicMock, patch
 
+from lffa import config
 from lffa import slm
 
 
@@ -47,6 +48,7 @@ class SlmFallbackTests(unittest.TestCase):
     def test_default_model_env(self) -> None:
         with patch.dict(os.environ, {}, clear=False):
             os.environ.pop("LFFA_OLLAMA_MODEL", None)
+            config.reset_config_cache()
             self.assertEqual(slm.ollama_model(), slm.DEFAULT_OLLAMA_MODEL)
 
 

@@ -9,11 +9,12 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+from lffa import config
 
 
 @dataclass(frozen=True)
@@ -26,24 +27,15 @@ class ProvenanceArtifact:
 
 
 def gateway_url() -> str:
-    for name in ("LFFA_ARWEAVE_GATEWAY_URL", "ARWEAVE_GATEWAY_URL"):
-        value = os.environ.get(name, "").strip()
-        if value:
-            return value.rstrip("/")
-    return "https://arweave.net"
+    return config.get_config().arweave_gateway_url
 
 
 def wallet_jwk_path() -> Path | None:
-    for name in ("LFFA_ARWEAVE_WALLET_JWK_PATH", "ARWEAVE_WALLET_JWK_PATH"):
-        raw = os.environ.get(name, "").strip()
-        if raw:
-            return Path(raw)
-    return None
+    return config.get_config().arweave_wallet_jwk_path
 
 
 def arweave_configured() -> bool:
-    path = wallet_jwk_path()
-    return path is not None and path.is_file()
+    return config.get_config().arweave_wallet_configured()
 
 
 def build_artifact(kind: str, payload: dict[str, Any]) -> ProvenanceArtifact:

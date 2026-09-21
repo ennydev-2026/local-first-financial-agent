@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from lffa import embeddings
 from lffa import ledger
@@ -23,6 +24,19 @@ class AgentTurnResult:
     overflow_backend: str | None
     overflow_notice: str | None
     provenance_line: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "user_message": self.user_message,
+            "assistant_reply": self.assistant_reply,
+            "routing": self.routing.to_dict(),
+            "embedding_model": self.embedding_model,
+            "slm_backend": self.slm_backend,
+            "slm_notice": self.slm_notice,
+            "overflow_backend": self.overflow_backend,
+            "overflow_notice": self.overflow_notice,
+            "provenance_line": self.provenance_line,
+        }
 
 
 def _build_context(db_path: Path, user_message: str) -> str:

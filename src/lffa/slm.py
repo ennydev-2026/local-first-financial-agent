@@ -6,15 +6,15 @@ Uses stdlib urllib only. Configure via LFFA_OLLAMA_BASE_URL and LFFA_OLLAMA_MODE
 from __future__ import annotations
 
 import json
-import os
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from typing import Protocol
 
+from lffa import config
 
-DEFAULT_OLLAMA_BASE_URL = "http://127.0.0.1:11434"
-DEFAULT_OLLAMA_MODEL = "llama3.2:1b"
+DEFAULT_OLLAMA_BASE_URL = config.DEFAULT_OLLAMA_BASE_URL
+DEFAULT_OLLAMA_MODEL = config.DEFAULT_OLLAMA_MODEL
 
 
 @dataclass(frozen=True)
@@ -29,11 +29,11 @@ class LocalSlmBackend(Protocol):
 
 
 def ollama_base_url() -> str:
-    return os.environ.get("LFFA_OLLAMA_BASE_URL", DEFAULT_OLLAMA_BASE_URL).rstrip("/")
+    return config.get_config().ollama_base_url
 
 
 def ollama_model() -> str:
-    return os.environ.get("LFFA_OLLAMA_MODEL", DEFAULT_OLLAMA_MODEL).strip() or DEFAULT_OLLAMA_MODEL
+    return config.get_config().ollama_model
 
 
 def stub_local_reply(prompt: str, embedding_model: str) -> str:

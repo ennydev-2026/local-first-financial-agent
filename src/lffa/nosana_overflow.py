@@ -12,7 +12,6 @@ See ``docs/nosana-credits.md`` and https://learn.nosana.com/api/jobs.html
 from __future__ import annotations
 
 import json
-import os
 import sys
 import urllib.error
 import urllib.request
@@ -21,9 +20,10 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Optional
 
-DEFAULT_NOSANA_API_BASE = "https://api.nosana.com"
-# Documented example market (RTX 4090 class) from Nosana inference guides.
-DEFAULT_NOSANA_MARKET = "97G9NnvBDQ2WpKu6fasoMsAKmfj63C9rhysJnkeWodAf"
+from lffa import config
+
+DEFAULT_NOSANA_API_BASE = config.DEFAULT_NOSANA_API_BASE
+DEFAULT_NOSANA_MARKET = config.DEFAULT_NOSANA_MARKET
 
 
 class InferenceRoute(str, Enum):
@@ -38,6 +38,18 @@ class RoutingDecision:
     estimated_context_chars: int
     local_max_chars: int
     nosana_configured: bool
+    force_local: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "route": self.route.value,
+            "reason": self.reason,
+            "estimated_context_chars": self.estimated_context_chars,
+            "local_max_chars": self.local_max_chars,
+            "nosana_configured": self.nosana_configured,
+            "force_local": self.force_local,
+            "within_local_budget": self.estimated_context_chars <= self.local_max_chars,
+        }
 
 
 @dataclass(frozen=True)
@@ -56,57 +68,32 @@ class NosanaSubmitResult:
     payload: dict[str, str] | None = None
 
 
-def _local_max_chars() -> int:
-    raw = os.environ.get("LFFA_LOCAL_MAX_CONTEXT_CHARS", "4000")
-    try:
-        return max(256, int(raw))
-    except ValueError:
-        return 4000
-
-
-def _force_local() -> bool:
-    return os.environ.get("LFFA_FORCE_LOCAL", "0").strip() in ("1", "true", "yes")
+def _cfg() -> config.LffaConfig:
+    return config.get_config()
 
 
 def nosana_api_key() -> str | None:
-    for name in ("LFFA_NOSANA_API_KEY", "NOSANA_API_KEY"):
-        value = os.environ.get(name, "").strip()
-        if value:
-            return value
-    return None
+    return _cfg().nosana_api_key
 
 
 def nosana_api_base() -> str:
-    for name in ("LFFA_NOSANA_API_BASE", "NOSANA_API_URL"):
-        value = os.environ.get(name, "").strip()
-        if value:
-            return value.rstrip("/")
-    return DEFAULT_NOSANA_API_BASE
+    return _cfg().nosana_api_base
 
 
 def nosana_market() -> str:
-    return (
-        os.environ.get("NOSANA_MARKET", "").strip()
-        or os.environ.get("LFFA_NOSANA_MARKET", "").strip()
-        or DEFAULT_NOSANA_MARKET
-    )
+    return _cfg().nosana_market
 
 
 def nosana_ipfs_hash() -> str | None:
-    value = os.environ.get("NOSANA_IPFS_HASH", "").strip()
-    return value or None
+    return _cfg().nosana_ipfs_hash
 
 
 def nosana_job_timeout_seconds() -> int:
-    raw = os.environ.get("NOSANA_JOB_TIMEOUT", "600").strip()
-    try:
-        return max(60, int(raw))
-    except ValueError:
-        return 600
+    return _cfg().nosana_job_timeout_seconds
 
 
 def nosana_credentials_present() -> bool:
-    return nosana_api_key() is not None
+    return _cfg().nosana_configured()
 
 
 def decide_route(
@@ -115,17 +102,20 @@ def decide_route(
     local_max_chars: Optional[int] = None,
 ) -> RoutingDecision:
     """Choose local SLM vs Nosana overflow based on context size (demo heuristic)."""
-    limit = local_max_chars if local_max_chars is not None else _local_max_chars()
+    cfg = _cfg()
+    limit = local_max_chars if local_max_chars is not None else cfg.local_max_context_chars
     size = len(prompt)
-    configured = nosana_credentials_present()
+    configured = cfg.nosana_configured()
+    force = cfg.force_local
 
-    if _force_local():
+    if force:
         return RoutingDecision(
             route=InferenceRoute.LOCAL_SLM,
             reason="LFFA_FORCE_LOCAL is set — always run on-device in this demo.",
             estimated_context_chars=size,
             local_max_chars=limit,
             nosana_configured=configured,
+            force_local=True,
         )
 
     if size <= limit:
@@ -135,6 +125,7 @@ def decide_route(
             estimated_context_chars=size,
             local_max_chars=limit,
             nosana_configured=configured,
+            force_local=False,
         )
 
     suffix = (
@@ -150,6 +141,7 @@ def decide_route(
         estimated_context_chars=size,
         local_max_chars=limit,
         nosana_configured=configured,
+        force_local=False,
     )
 
 

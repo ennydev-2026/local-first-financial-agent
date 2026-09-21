@@ -35,8 +35,8 @@ Contest tags: `#decentralize-ai` `#decentralize-ai-hackathon` `#agentic-ai` `#ai
 3. **Architecture diagram** — Link to `ARCHITECTURE.md` in repo.
 4. **Local-first wins** — Latency, privacy, offline.
 5. **When decentralization helps** — Burst GPU, not everyday CRUD.
-6. **Honest limitations** — Stubs, no live Nosana/Arweave in v0.1.
-7. **Roadmap** — Real embeddings, Ollama/local SLM, one Nosana job, one Arweave anchor.
+6. **Honest limitations** — Embedding stub; overflow reply placeholder; Arweave upload TODO; Nosana HTTP real when keyed.
+7. **Roadmap** — Semantic embeddings, Nosana output polling, Arweave anchor, retrieval.
 8. **Call to action** — Star repo, try hackathon scaffold, feedback welcome.
 
 ## Spanish blurb (optional lead)

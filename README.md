@@ -1,151 +1,145 @@
 # Local-First Financial Agent (LFFA)
 
-Hackathon demo scaffold for the **Decentralize AI Hackathon** (HackerNoon / Nosana / Arweave).  
-**Not a production product** — a personal budgeting agent story: transactions, embeddings, and context stay **on your device**; a small **local SLM** handles routine questions when possible; **heavy jobs overflow to Nosana** (stub); **optional provenance** to Arweave (stub).
+Personal budgeting CLI for the **Decentralize AI Hackathon** (HackerNoon, Nosana, Arweave). Your ledger lives in **SQLite on your machine**. Routine questions go to a **local SLM** (Ollama). **Large context** can overflow to **Nosana** when configured. **Arweave** is an optional provenance layer (hash today; on-chain upload not implemented).
 
-`#decentralize-ai` `#decentralize-ai-hackathon` `#agentic-ai` `#ai-inference` `#developer-tools`
+This is an open-source hackathon scaffold — **not** a Finanzalia product, **not** a trading bot, **not** a cloud SaaS.
 
-*Agente financiero local-first: transacciones y contexto en tu dispositivo; GPU descentralizada solo para trabajos pesados (demo).*
+Tags: `#decentralize-ai` `#decentralize-ai-hackathon` `#agentic-ai` `#ai-inference` `#developer-tools`
 
-## Pitch
+*Agente financiero local-first: el libro mayor en tu dispositivo; inferencia local por defecto.*
 
-Most “AI finance” apps send your ledger to the cloud. LFFA flips that: **SQLite ledger on disk**, **local embedding stub**, **routing logic** that prefers on-device inference and only marks **Nosana overflow** when context exceeds a budget. Arweave is a **optional integrity layer**, not your database.
+## Why local-first
 
-No crypto trading. No exchange APIs. Personal ledger + budgeting agent only.
-
-## Architecture (short)
-
-```
-CLI → Agent → SQLite ledger
-           → Local embeddings (stub)
-           → Route: local SLM (Ollama)  OR  Nosana overflow (stub)
-           → Optional Arweave hash (stub)
-```
-
-See [ARCHITECTURE.md](./ARCHITECTURE.md) for diagram and data flow.
+Most “AI finance” flows send your transaction history to a vendor API. LFFA keeps the **system of record on disk**, builds agent context locally, and only touches decentralized services when you configure them and the routing heuristic says the job is too large for on-device inference.
 
 ## Quick start
 
-Requires **Python 3.10+**.
+**Requirements:** Python 3.10+, no runtime dependencies beyond the stdlib.
 
 ```bash
 git clone https://github.com/ennydev-2026/local-first-financial-agent.git
 cd local-first-financial-agent
 pip install -e .
-# or: uv pip install -e .
+cp .env.example .env   # optional
 ```
 
-Copy env template (optional — demo works without it):
-
 ```bash
-cp .env.example .env
-```
-
-### Optional: local SLM via Ollama
-
-Routine questions use **Ollama** on your machine when it is running and the model is available. No extra Python dependencies (stdlib HTTP client).
-
-1. Install [Ollama](https://ollama.com/) for your OS.
-2. Pull the default small model (documented in [Ollama library](https://ollama.com/library/llama3.2)):
-
-```bash
-ollama pull llama3.2:1b
-```
-
-3. Ensure the daemon is listening (default `http://127.0.0.1:11434`).
-
-Environment (see [.env.example](./.env.example)):
-
-| Variable | Default |
-|----------|---------|
-| `LFFA_OLLAMA_BASE_URL` | `http://127.0.0.1:11434` |
-| `LFFA_OLLAMA_MODEL` | `llama3.2:1b` |
-
-If Ollama is unreachable or the model is missing, the CLI **falls back to the stub SLM reply** and prints a one-line notice on stderr — it does not crash.
-
-### Demo command (local-first vs overflow)
-
-```bash
+lffa seed
 lffa demo
+lffa doctor            # Ollama, Nosana key, writable DB path
 ```
 
-Ask a single question (same agent path as demo):
+Ledger file default: `./.lffa/ledger.db` (override with `LFFA_LEDGER_DB`).
+
+### Optional: Ollama (real local SLM)
+
+1. Install [Ollama](https://ollama.com/).
+2. `ollama pull llama3.2:1b`
+3. Ensure the daemon listens at `http://127.0.0.1:11434` (default).
 
 ```bash
-lffa ask "How am I doing on food spending this month?"
+lffa ask "How much did I spend on food?"
+lffa ask "How much did I spend on food?" --json   # machine-readable routing telemetry
 ```
 
-Example routing output:
+If Ollama is down or the model is missing, you get a **stub reply** and a one-line notice on stderr — exit code stays `0`.
+
+## What works vs stub
+
+| Component | Status |
+|-----------|--------|
+| SQLite ledger, `add` / `list` / `summary`, categories & tags | **Working** |
+| `export` / `import` JSON backup | **Working** |
+| Config module (`lffa.config`), `lffa doctor` | **Working** |
+| Embeddings | **Stub** (`stub-sha256-local-v0`, deterministic, not semantic) |
+| Local SLM | **Ollama** via stdlib HTTP, else **stub** |
+| Routing (`local_slm` vs `nosana_overflow`) | **Working** (char budget + `LFFA_FORCE_LOCAL`) |
+| Nosana overflow | **HTTP client** when API key set; **stub** without key or on failure |
+| Arweave | **SHA-256 artifact**; wallet path validated; **upload not implemented** |
+
+We do **not** invent live Nosana job success or fake Arweave `tx_id` values.
+
+## CLI reference
+
+Global options on each subcommand: `--db PATH`, `--json`.
+
+| Command | Purpose |
+|---------|---------|
+| `lffa version` | Print version (`0.2.0`) |
+| `lffa seed` | Sample transactions if ledger is empty |
+| `lffa add DESC CENTS` | Add row (`--category`, `--tags`, `--notes`) |
+| `lffa list` | Recent transactions (`--limit`) |
+| `lffa summary` | Totals; `--by category` or `--by tag` |
+| `lffa ask QUESTION` | Agent turn with routing telemetry |
+| `lffa demo` | Seed + summary + ask; `--long-context` for overflow probe |
+| `lffa export` | JSON backup (`-o file.json`) |
+| `lffa import FILE` | Restore backup (`--merge` to append) |
+| `lffa doctor` | Health checks (exit `1` if any check fails) |
+
+Full flag detail: [docs/cli.md](./docs/cli.md).
+
+## Environment variables
+
+Prefer **`LFFA_*`** names. Legacy `NOSANA_*` / `ARWEAVE_*` aliases are supported — see [.env.example](./.env.example).
+
+| Variable | Default | Role |
+|----------|---------|------|
+| `LFFA_LEDGER_DB` | `./.lffa/ledger.db` | SQLite path |
+| `LFFA_DATA_DIR` | `./.lffa` | Data directory (used when `LFFA_LEDGER_DB` unset) |
+| `LFFA_OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Ollama API |
+| `LFFA_OLLAMA_MODEL` | `llama3.2:1b` | Model tag |
+| `LFFA_LOCAL_MAX_CONTEXT_CHARS` | `4000` | Local vs overflow threshold |
+| `LFFA_FORCE_LOCAL` | `0` | If `1`, never route to overflow |
+| `LFFA_NOSANA_API_KEY` / `NOSANA_API_KEY` | — | Nosana bearer token |
+| `LFFA_NOSANA_API_BASE` | `https://api.nosana.com` | API base |
+| `NOSANA_IPFS_HASH` | — | Required to **post** a real GPU job |
+| `LFFA_ARWEAVE_WALLET_JWK_PATH` | — | Wallet JWK (validated only) |
+
+Loaded and validated in `src/lffa/config.py`.
+
+## Architecture
 
 ```
---- Inference routing ---
-Route: local_slm
-Reason: Context (… chars) fits local SLM budget (≤ 4000).
+lffa CLI → agent.run_turn()
+         → ledger (SQLite)
+         → embeddings (stub)
+         → nosana_overflow.decide_route()
+              ├─ local_slm → slm.complete_local() → Ollama | stub
+              └─ nosana_overflow → submit_overflow_job() → HTTP | stub
+         → arweave_provenance (hash + optional upload attempt)
 ```
 
-Force an overflow routing probe (shows `Overflow backend: nosana|stub`):
+Diagram and extension points: [ARCHITECTURE.md](./ARCHITECTURE.md).
 
-```bash
-lffa demo --long-context
-```
+## Hackathon context
 
-With a Nosana API key, the client calls the [Nosana HTTP API](https://learn.nosana.com/api/intro.html) (balance check and optional job post). Without a key or on failure, it keeps the **stub** path and prints a one-line stderr notice. Hackathon credits: [docs/nosana-credits.md](./docs/nosana-credits.md).
-
-### Other CLI commands
-
-```bash
-lffa seed                              # sample transactions (if empty)
-lffa add "Lunch" -850 --category food  # amount in cents
-lffa list
-lffa summary
-```
-
-Data defaults to `./.lffa/ledger.db` (override with `LFFA_LEDGER_DB`).
-
-## Stub vs real
-
-| Piece | In this repo |
-|-------|----------------|
-| SQLite ledger, summary, CLI | **Real** |
-| Embeddings | **Stub** (`stub-sha256-local-v0`) |
-| Local SLM replies | **Ollama** when available; **stub** fallback + stderr notice |
-| Nosana overflow | **HTTP client** when API key set (`nosana`); **stub** fallback + stderr notice |
-| Arweave | **SHA-256 metadata**; wallet path validated; on-chain upload **not implemented** yet |
-
-Nosana: API key verifies credits and can post a job when `NOSANA_IPFS_HASH` is set (see credits doc). Arweave: no fake `tx_id` on upload.
-
-### Nosana environment
-
-| Variable | Purpose |
-|----------|---------|
-| `NOSANA_API_KEY` / `LFFA_NOSANA_API_KEY` | Bearer token for `https://api.nosana.com` |
-| `LFFA_NOSANA_API_BASE` | Override API base URL |
-| `NOSANA_IPFS_HASH` + `NOSANA_MARKET` | Optional real job post via `/api/jobs/list` |
-
-Details: [docs/nosana-credits.md](./docs/nosana-credits.md).
+- **Problem:** Sensitive personal finance data routed through centralized inference by default.
+- **Approach:** Local ledger + local SLM first; Nosana for overflow; Arweave for optional integrity metadata.
+- **Nosana credits:** [docs/nosana-credits.md](./docs/nosana-credits.md)
+- **Judge demo script:** [docs/hackathon.md](./docs/hackathon.md)
+- **Blog draft:** [docs/hackernoon-draft.md](./docs/hackernoon-draft.md)
 
 ## Project layout
 
 ```
 src/lffa/
-  ledger.py              # SQLite transactions
-  embeddings.py          # local embedding stub
-  agent.py               # agent turn + routing
-  slm.py                 # Ollama client + stub fallback
-  nosana_overflow.py     # overflow interface (stub)
-  arweave_provenance.py  # provenance stub
+  config.py              # env loading, validation, public config dict
   cli.py                 # entrypoint
-docs/hackernoon-outline.md
+  ledger.py              # SQLite + export/import
+  agent.py               # agent turn orchestration
+  slm.py                 # Ollama + stub
+  nosana_overflow.py     # routing + Nosana HTTP
+  arweave_provenance.py  # provenance artifacts
+  doctor.py              # health checks
+  embeddings.py          # embedding stub
+tests/
+docs/
 ```
 
-## Environment variables
+## Contributing
 
-See [.env.example](./.env.example): `LFFA_OLLAMA_*`, `NOSANA_*` / `LFFA_NOSANA_*`, `LFFA_ARWEAVE_*`, `LFFA_LOCAL_MAX_CONTEXT_CHARS`, `LFFA_FORCE_LOCAL`.
+See [CONTRIBUTING.md](./CONTRIBUTING.md). Issues and PRs welcome; keep changes small and tested.
 
 ## License
 
-MIT — see [LICENSE](./LICENSE).
-
-## Hackathon blog
-
-Draft for HackerNoon: [docs/hackernoon-draft.md](./docs/hackernoon-draft.md) (outline: [docs/hackernoon-outline.md](./docs/hackernoon-outline.md)).
+MIT — [LICENSE](./LICENSE).

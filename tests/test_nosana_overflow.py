@@ -7,6 +7,7 @@ import os
 import unittest
 from unittest.mock import patch
 
+from lffa import config
 from lffa import nosana_overflow
 
 
@@ -15,6 +16,7 @@ class NosanaOverflowTests(unittest.TestCase):
         with patch.dict(os.environ, {}, clear=True):
             os.environ.pop("NOSANA_API_KEY", None)
             os.environ.pop("LFFA_NOSANA_API_KEY", None)
+            config.reset_config_cache()
             req = nosana_overflow.build_overflow_job("hello")
             with patch.object(nosana_overflow, "_emit_notice") as notice_mock:
                 result = nosana_overflow.submit_overflow_job(req)
@@ -37,6 +39,7 @@ class NosanaOverflowTests(unittest.TestCase):
 
         env = {"NOSANA_API_KEY": "nos_test_key"}
         with patch.dict(os.environ, env, clear=False):
+            config.reset_config_cache()
             req = nosana_overflow.build_overflow_job("long prompt " * 10)
             with patch("urllib.request.urlopen", side_effect=fake_urlopen):
                 with patch.object(nosana_overflow, "_emit_notice"):
@@ -63,6 +66,7 @@ class NosanaOverflowTests(unittest.TestCase):
             "NOSANA_MARKET": "market-pubkey",
         }
         with patch.dict(os.environ, env, clear=False):
+            config.reset_config_cache()
             req = nosana_overflow.build_overflow_job("overflow")
             with patch("urllib.request.urlopen", side_effect=fake_urlopen):
                 result = nosana_overflow.submit_overflow_job(req)
@@ -77,6 +81,7 @@ class NosanaOverflowTests(unittest.TestCase):
             raise urllib.error.URLError("network down")
 
         with patch.dict(os.environ, {"LFFA_NOSANA_API_KEY": "nos_x"}, clear=False):
+            config.reset_config_cache()
             req = nosana_overflow.build_overflow_job("x")
             with patch("urllib.request.urlopen", side_effect=fake_urlopen):
                 with patch.object(nosana_overflow, "_emit_notice"):
@@ -85,6 +90,7 @@ class NosanaOverflowTests(unittest.TestCase):
 
     def test_credentials_present_with_lffa_key(self) -> None:
         with patch.dict(os.environ, {"LFFA_NOSANA_API_KEY": "nos_y"}, clear=False):
+            config.reset_config_cache()
             self.assertTrue(nosana_overflow.nosana_credentials_present())
 
     def test_decide_route_overflow_when_large(self) -> None:

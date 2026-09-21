@@ -45,10 +45,12 @@ See [Nosana Jobs API](https://learn.nosana.com/api/jobs.html) and [inference end
 ## Demo in LFFA
 
 ```bash
+lffa doctor                    # confirms key presence (masked) without leaking secrets
 lffa demo --long-context
+lffa demo --long-context --json   # machine-readable routing + submit status
 ```
 
-Look for `Overflow backend: nosana` or `stub` in the output (same idea as `SLM backend: ollama|stub` for local inference).
+Look for `Overflow backend: nosana` or `stub` in the output (same idea as `SLM backend: ollama|stub` for local inference). In JSON mode, inspect `routing` and `overflow_probe.submit_backend`.
 
 ## Limitations (honest)
 
